@@ -44,6 +44,17 @@
     background:transparent;
   }
 
+  /* ✅ Hidden Admin Hotspot (tap/click untuk iPad/Tab) */
+  #adminHotspot{
+    position:fixed;
+    top:0;
+    left:0;
+    width:44px;
+    height:44px;
+    background:transparent;   /* tersembunyi */
+    z-index:1500;
+  }
+
   /* CENTER (turunin sedikit biar tidak nabrak judul) */
   #center{
     position:absolute;
@@ -249,6 +260,9 @@
 </head>
 
 <body>
+
+<!-- ✅ Hidden hotspot kiri atas untuk buka/tutup Admin -->
+<div id="adminHotspot" aria-label="Admin Hotspot"></div>
 
 <div id="title">Solushe Lucky Spin</div>
 
@@ -602,6 +616,13 @@ document.addEventListener("keydown", (e)=>{
 
 closeAdmin.addEventListener("click", ()=>{
   admin.style.display = "none";
+});
+
+/* ✅ iPad/Tab: klik/tap hotspot kiri atas untuk toggle admin */
+const adminHotspot = document.getElementById("adminHotspot");
+adminHotspot.addEventListener("click", ()=>{
+  admin.style.display = (admin.style.display==="flex") ? "none" : "flex";
+  if(admin.style.display==="flex") renderAdmin();
 });
 </script>
 </body>
