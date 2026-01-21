@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Solushe Lucky Spin</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --maroon:#7a1f2b;
+    --white:#ffffff;
+    --gold:#d4af37;
+    --bright-red:#ff0000;
+  }
+
+  html,body{
+    margin:0; padding:0;
+    width:100%; height:100%;
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+  }
+
+  body{
+    background:url("background.jpg") center/cover no-repeat fixed;
+  }
+
+  /* 1️⃣ TITLE (PLAIN, STABIL, NO SHADOW/GRADIENT) */
+  #title{
+    position:fixed;
+    top:18px;
+    left:0;
+    width:100%;
+    text-align:center;
+    font-family:"Playfair Display", serif;
+    font-style:italic;
+    font-weight:700;        /* ✅ bold (warna & font sama) */
+    font-size:56px;         /* ✅ BESARKAN tulisan */
+    color:var(--maroon);
+    z-index:1000;          /* tidak boleh ketiban */
+    pointer-events:none;
+    text-shadow:none;      /* ❌ no shadow */
+    background:transparent;
+  }
+
+  /* CENTER (turunin sedikit biar tidak nabrak judul) */
+  #center{
+    position:absolute;
+    inset:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding-top:65px;       /* ✅ wheel + tombol naik LAGI (dari 95px) */
+    box-sizing:border-box;
+  }
+
+  #wheel-wrap{
+    position:relative;
+    width:460px;
+    height:460px;
+  }
+
+  /* 5️⃣ GOLD RING (DIAM, LUAR WHEEL) */
+  #gold-ring{
+    position:absolute;
+    inset:-24px;
+    background:url("gold-ring.png") center/contain no-repeat;
+    pointer-events:none;
+    z-index:1;
+  }
+
+  /* Wheel canvas (yang diputar hanya ini) */
+  #wheel{
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    background:var(--white);
+    position:relative;
+    z-index:2;
+    transform:rotate(0deg);
+    will-change:transform;
+  }
+
+  /* 6️⃣ LOGO (BULAT, BERSIH, TANPA RING, DIAM) */
+  #logo{
+    position:absolute;
+    width:90px;            /* ✅ LOGO lebih kecil */
+    height:90px;           /* ✅ LOGO lebih kecil */
+    border-radius:50%;
+    object-fit:cover;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    z-index:6;
+    background:transparent;
+    pointer-events:none;
+  }
+
+  /* 2️⃣ POINTER: segitiga lancip MERAH TERANG di kanan,
+        ujung lancip menusuk ke dalam (mengarah ke KIRI) */
+  #pointer{
+    position:absolute;
+    top:50%;
+    left:100%;
+    transform:translate(-10px, -50%);
+    width:0; height:0;
+    border-top:16px solid transparent;
+    border-bottom:16px solid transparent;
+    border-right:34px solid var(--bright-red);
+    z-index:7;
+    pointer-events:none;
+  }
+
+  /* Pointer click bounce */
+  .pointer-bounce{
+    animation:pointerClick .12s ease;
+  }
+  @keyframes pointerClick{
+    0%   { transform:translate(-10px,-50%); }
+    50%  { transform:translate(-16px,-50%); }
+    100% { transform:translate(-10px,-50%); }
+  }
+
+  #spin{
+    position:absolute;
+    bottom:-80px;
+    left:50%;
+    transform:translateX(-50%);
+    padding:14px 40px;
+    font-size:22px;
+    font-weight:bold;
+    border:none;
+    border-radius:30px;
+    background:maroon;
+    color:white;
+    cursor:pointer;
+    z-index:10;
+  }
+  #spin:disabled{ opacity:.6; cursor:not-allowed; }
+
+  /* 8️⃣ OVERLAY HASIL: gelap, teks putih glow kuning muda, zoom-in */
+  #overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.65);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:2000;
+  }
+  #winText{
+    font-size:54px;
+    font-weight:bold;
+    color:white;
+    text-align:center;
+    text-shadow:
+      0 0 12px rgba(255,230,150,.9),
+      0 0 26px rgba(255,230,150,.75);
+    transform:scale(.85);
+    opacity:0;
+  }
+  .win-zoom{
+    animation:winZoom .35s ease forwards;
+  }
+  @keyframes winZoom{
+    to{ transform:scale(1); opacity:1; }
+  }
+
+  /* 7️⃣ CONFETTI: explosion scatter 360° fullscreen */
+  .confetti{
+    position:fixed;
+    width:10px;
+    height:14px;
+    left:var(--sx);
+    top:var(--sy);
+    background:var(--c);
+    opacity:1;
+    transform:translate(0,0) rotate(0deg);
+    animation:confettiExplode 2.8s ease-out forwards;
+    z-index:1999;
+    pointer-events:none;
+  }
+  @keyframes confettiExplode{
+    to{
+      transform:translate(var(--dx), var(--dy)) rotate(720deg);
+      opacity:0;
+    }
+  }
+
+  /* 9️⃣ ADMIN MODE: panel tengah + OK/CLOSE + edit chance + log */
+  #admin{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:3000;
+  }
+  #adminPanel{
+    width:min(760px, 92vw);
+    max-height:min(80vh, 720px);
+    background:white;
+    border-radius:14px;
+    padding:18px 18px 14px;
+    overflow:auto;
+    position:relative;
+    box-shadow:0 12px 40px rgba(0,0,0,.35);
+  }
+  #adminPanel h2{ margin:0 0 10px 0; }
+  #closeAdmin{
+    position:absolute;
+    top:12px;
+    right:14px;
+    font-size:16px;
+    cursor:pointer;
+    font-weight:bold;
+    background:#f2f2f2;
+    border-radius:10px;
+    padding:8px 12px;
+    user-select:none;
+  }
+  .adminRow{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    padding:8px 0;
+    border-bottom:1px solid #eee;
+  }
+  .adminName{ flex:1; font-weight:700; }
+  .adminChance input{ width:90px; padding:6px 8px; }
+  #adminLog{
+    margin-top:14px;
+    padding-top:10px;
+    border-top:2px dashed #ddd;
+  }
+  #adminLogList{
+    font-family:Arial, sans-serif;
+    font-size:14px;
+    line-height:1.45;
+    max-height:220px;
+    overflow:auto;
+    background:#fafafa;
+    border:1px solid #eee;
+    border-radius:10px;
+    padding:10px;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="title">Solushe Lucky Spin</div>
+
+<div id="center">
+  <div id="wheel-wrap">
+    <div id="gold-ring"></div>
+    <canvas id="wheel" width="460" height="460"></canvas>
+    <img src="logo.png" id="logo" alt="logo">
+    <div id="pointer"></div>
+    <button id="spin">SPIN</button>
+  </div>
+</div>
+
+<div id="overlay"><div id="winText"></div></div>
+
+<div id="admin">
+  <div id="adminPanel">
+    <div id="closeAdmin">OK / CLOSE ✕</div>
+    <h2>Admin Mode</h2>
+    <div id="adminList"></div>
+
+    <div id="adminLog">
+      <h3 style="margin:10px 0 8px 0;">Log Hasil Spin</h3>
+      <div id="adminLogList"></div>
+      <div style="margin-top:10px; font-size:12px; color:#666;">
+        Shortcut: <b>CTRL + ALT + A</b> untuk buka / tutup.
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="drum" src="drumroll.mp3" preload="auto"></audio>
+<audio id="win" src="win.mp3" preload="auto"></audio>
+
+<script>
+/* ===========================
+   DATA (LOCK RULES)
+   - Slice visual sama, chance logic only
+   - "Face / Acne Rejuve" wajib 2 baris
+   - Once prizes hilang dari wheel (hapus slice)
+=========================== */
+
+let prizes = [
+  { name:"iPhone 17 Pro", chance:5, once:true },
+  { name:"MMFU", chance:10 },
+  { name:"Philips Air Fryer", chance:6, once:true },
+
+  // UPDATE: Face/Acne Rejuve jadi 2 baris
+  { name:"Face / Acne\nRejuve", chance:20 },
+
+  { name:"Remington Hair\nStraightener", chance:7, once:true },
+  { name:"Underarm Rejuve /\nHair Removal", chance:18 },
+  { name:"Glow / Acne Peel", chance:24 },
+  { name:"Logam Mulia", chance:6, once:true }
+];
+
+const maroon = getComputedStyle(document.documentElement).getPropertyValue('--maroon').trim() || "#7a1f2b";
+const white  = getComputedStyle(document.documentElement).getPropertyValue('--white').trim()  || "#ffffff";
+
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+
+const wheelEl = document.getElementById("wheel");
+const spinBtn = document.getElementById("spin");
+const pointerEl = document.getElementById("pointer");
+
+const overlay = document.getElementById("overlay");
+const winText = document.getElementById("winText");
+
+const drum = document.getElementById("drum");
+const winSfx = document.getElementById("win");
+
+/* ===========================
+   DRAW WHEEL (selalu redraw setelah hadiah berkurang)
+=========================== */
+function draw(){
+  ctx.clearRect(0,0,460,460);
+  const cx=230, cy=230, r=230;
+
+  const arc = (Math.PI*2) / prizes.length;
+
+  prizes.forEach((p,i)=>{
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.fillStyle = (i%2) ? maroon : white;
+    ctx.arc(cx,cy,r, i*arc, (i+1)*arc);
+    ctx.closePath();
+    ctx.fill();
+
+    // Text: Arial Bold, 1-2 baris, tetap di dalam circle
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(i*arc + arc/2);
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = (i%2) ? white : maroon;
+    ctx.font = "bold 17px Arial";
+
+    const lines = p.name.split("\n").slice(0,2); // max 2 baris
+    const lineH = 18;
+
+    // posisi teks agak masuk supaya tidak offside
+    const textRadius = 205;
+
+    const totalH = (lines.length-1)*lineH;
+    lines.forEach((line, idx)=>{
+      const y = (idx*lineH) - (totalH/2);
+      ctx.fillText(line, textRadius, y);
+    });
+
+    ctx.restore();
+  });
+}
+draw();
+
+/* ===========================
+   PICK PRIZE (chance logic only)
+=========================== */
+function pickPrize(){
+  const total = prizes.reduce((s,p)=> s + Number(p.chance||0), 0);
+  let r = Math.random() * total;
+  for(const p of prizes){
+    const c = Number(p.chance||0);
+    if(r < c) return p;
+    r -= c;
+  }
+  return prizes[prizes.length-1];
+}
+
+/* ===========================
+   SPIN ENGINE (ANTI LAG)
+   - satu animasi per spin (cancel sebelumnya)
+   - reset state setiap spin
+   - tidak transform numpuk: set rotate ke angle absolut
+=========================== */
+let spinning = false;
+let rafId = null;
+let angle = 0; // derajat absolut (akan terus bertambah, tapi transform selalu pakai angle ini)
+
+function cancelSpinIfAny(){
+  if(rafId){
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+}
+
+function normDeg(d){
+  d = d % 360;
+  if(d < 0) d += 360;
+  return d;
+}
+
+/* Helper: pointer click */
+function pointerClick(){
+  pointerEl.classList.remove("pointer-bounce");
+  // reflow biar animasi bisa dipanggil berulang
+  void pointerEl.offsetWidth;
+  pointerEl.classList.add("pointer-bounce");
+}
+
+/* "klik...klik...klik" saat finish */
+function pointerClickTriple(){
+  let n=0;
+  const tick = ()=>{
+    pointerClick();
+    n++;
+    if(n<3) setTimeout(tick, 140);
+  };
+  tick();
+}
+
+spinBtn.addEventListener("click", ()=>{
+  if(spinning) return;
+
+  // reset state spin (ANTI LAG)
+  spinning = true;
+  spinBtn.disabled = true;
+  cancelSpinIfAny();
+
+  // stop & reset audio
+  try{
+    drum.pause(); drum.currentTime = 0;
+    winSfx.pause(); winSfx.currentTime = 0;
+  }catch(e){}
+
+  drum.play().catch(()=>{});
+
+  // pilih hadiah (logic)
+  const winPrize = pickPrize();
+  const idx = prizes.indexOf(winPrize);
+  const sliceDeg = 360 / prizes.length;
+
+  const centerOfSlice = idx*sliceDeg + sliceDeg/2;
+
+  const extraTurns = 6 * 360;
+  const startAngle = angle;
+  const targetAngle = (Math.floor(startAngle/360)*360) + extraTurns + (360 - centerOfSlice);
+
+  const duration = 4200;
+  let startTime = null;
+
+  function animate(t){
+    if(!startTime) startTime = t;
+    const elapsed = t - startTime;
+    const p = Math.min(elapsed / duration, 1);
+
+    const eased = 1 - Math.pow(1 - p, 3);
+
+    const current = startAngle + (targetAngle - startAngle) * eased;
+
+    angle = current;
+    wheelEl.style.transform = `rotate(${angle}deg)`;
+
+    if(p < 1){
+      rafId = requestAnimationFrame(animate);
+    }else{
+      rafId = null;
+      finishSpin(winPrize);
+    }
+  }
+
+  rafId = requestAnimationFrame(animate);
+});
+
+function finishSpin(winPrize){
+  try{ drum.pause(); }catch(e){}
+  winSfx.play().catch(()=>{});
+
+  pointerClickTriple();
+
+  winText.classList.remove("win-zoom");
+  winText.innerText = winPrize.name.replace("\n"," ");
+  overlay.style.display = "flex";
+  void winText.offsetWidth;
+  winText.classList.add("win-zoom");
+
+  confettiExplode();
+
+  addLog(winPrize.name.replace("\n"," "));
+
+  if(winPrize.once){
+    prizes = prizes.filter(p => p !== winPrize);
+    draw();
+  }
+
+  spinning = false;
+  spinBtn.disabled = false;
+}
+
+overlay.addEventListener("click", ()=>{
+  overlay.style.display = "none";
+});
+
+function confettiExplode(){
+  const colors = [ "#ffffff", maroon, "#d4af37" ];
+
+  const sx = "50vw";
+  const sy = "55vh";
+
+  const count = 260;
+
+  for(let i=0;i<count;i++){
+    const c = document.createElement("div");
+    c.className = "confetti";
+    c.style.setProperty("--sx", sx);
+    c.style.setProperty("--sy", sy);
+    c.style.setProperty("--c", colors[Math.floor(Math.random()*colors.length)]);
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 120 + Math.random() * 520;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist;
+
+    c.style.setProperty("--dx", dx.toFixed(1) + "px");
+    c.style.setProperty("--dy", dy.toFixed(1) + "px");
+
+    const jitterX = (Math.random()*10 - 5);
+    const jitterY = (Math.random()*10 - 5);
+    c.style.left = `calc(50vw + ${jitterX}px)`;
+    c.style.top  = `calc(55vh + ${jitterY}px)`;
+
+    document.body.appendChild(c);
+    setTimeout(()=> c.remove(), 3200);
+  }
+}
+
+const admin = document.getElementById("admin");
+const adminList = document.getElementById("adminList");
+const adminLogList = document.getElementById("adminLogList");
+const closeAdmin = document.getElementById("closeAdmin");
+
+let spinLogs = [];
+
+function addLog(text){
+  const stamp = new Date().toLocaleString("id-ID");
+  spinLogs.unshift(`${stamp} — ${text}`);
+  spinLogs = spinLogs.slice(0, 60);
+  renderLog();
+}
+
+function renderLog(){
+  if(spinLogs.length===0){
+    adminLogList.innerHTML = "<i>Belum ada spin.</i>";
+    return;
+  }
+  adminLogList.innerHTML = spinLogs.map(x => `• ${escapeHtml(x)}`).join("<br>");
+}
+
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function renderAdmin(){
+  adminList.innerHTML = "";
+  prizes.forEach((p,i)=>{
+    const row = document.createElement("div");
+    row.className = "adminRow";
+
+    const nm = document.createElement("div");
+    nm.className = "adminName";
+    nm.textContent = p.name.replace("\n"," ");
+
+    const ch = document.createElement("div");
+    ch.className = "adminChance";
+    ch.innerHTML = `Chance (%): <input type="number" min="0" step="1" value="${Number(p.chance||0)}">`;
+
+    const input = ch.querySelector("input");
+    input.addEventListener("input", ()=>{
+      prizes[i].chance = Number(input.value || 0);
+    });
+
+    row.appendChild(nm);
+    row.appendChild(ch);
+    adminList.appendChild(row);
+  });
+
+  renderLog();
+}
+
+document.addEventListener("keydown", (e)=>{
+  if(e.ctrlKey && e.altKey && e.key.toLowerCase()==="a"){
+    admin.style.display = (admin.style.display==="flex") ? "none" : "flex";
+    if(admin.style.display==="flex") renderAdmin();
+  }
+});
+
+closeAdmin.addEventListener("click", ()=>{
+  admin.style.display = "none";
+});
+</script>
+</body>
+</html>
