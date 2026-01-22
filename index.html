@@ -35,12 +35,12 @@
     text-align:center;
     font-family:"Playfair Display", serif;
     font-style:italic;
-    font-weight:700;        /* ✅ bold (warna & font sama) */
-    font-size:56px;         /* ✅ BESARKAN tulisan */
+    font-weight:700;
+    font-size:56px;
     color:var(--maroon);
-    z-index:1000;          /* tidak boleh ketiban */
+    z-index:1000;
     pointer-events:none;
-    text-shadow:none;      /* ❌ no shadow */
+    text-shadow:none;
     background:transparent;
   }
 
@@ -51,7 +51,18 @@
     left:0;
     width:44px;
     height:44px;
-    background:transparent;   /* tersembunyi */
+    background:transparent;
+    z-index:1500;
+  }
+
+  /* ✅ Fullscreen toggle hotspot di kanan atas */
+  #fullscreenHotspot{
+    position:fixed;
+    top:0;
+    right:0;
+    width:44px;
+    height:44px;
+    background:transparent;
     z-index:1500;
   }
 
@@ -62,7 +73,7 @@
     display:flex;
     justify-content:center;
     align-items:center;
-    padding-top:65px;       /* ✅ wheel + tombol naik LAGI (dari 95px) */
+    padding-top:65px;
     box-sizing:border-box;
   }
 
@@ -70,6 +81,14 @@
     position:relative;
     width:460px;
     height:460px;
+  }
+
+  /* ✅ NEW: wrapper khusus wheel (biar tombol SPIN gak ikut naik) */
+  #wheel-stage{
+    position:relative;
+    width:100%;
+    height:100%;
+    transform:translateY(-25px); /* ✅ naikkan wheel aja (ubah angka ini kalau mau) */
   }
 
   /* 5️⃣ GOLD RING (DIAM, LUAR WHEEL) */
@@ -96,8 +115,8 @@
   /* 6️⃣ LOGO (BULAT, BERSIH, TANPA RING, DIAM) */
   #logo{
     position:absolute;
-    width:90px;            /* ✅ LOGO lebih kecil */
-    height:90px;           /* ✅ LOGO lebih kecil */
+    width:90px;
+    height:90px;
     border-radius:50%;
     object-fit:cover;
     top:50%;
@@ -108,8 +127,7 @@
     pointer-events:none;
   }
 
-  /* 2️⃣ POINTER: segitiga lancip MERAH TERANG di kanan,
-        ujung lancip menusuk ke dalam (mengarah ke KIRI) */
+  /* 2️⃣ POINTER */
   #pointer{
     position:absolute;
     top:50%;
@@ -123,7 +141,6 @@
     pointer-events:none;
   }
 
-  /* Pointer click bounce */
   .pointer-bounce{
     animation:pointerClick .12s ease;
   }
@@ -150,7 +167,6 @@
   }
   #spin:disabled{ opacity:.6; cursor:not-allowed; }
 
-  /* 8️⃣ OVERLAY HASIL: gelap, teks putih glow kuning muda, zoom-in */
   #overlay{
     position:fixed;
     inset:0;
@@ -178,7 +194,6 @@
     to{ transform:scale(1); opacity:1; }
   }
 
-  /* 7️⃣ CONFETTI: explosion scatter 360° fullscreen */
   .confetti{
     position:fixed;
     width:10px;
@@ -199,7 +214,6 @@
     }
   }
 
-  /* 9️⃣ ADMIN MODE: panel tengah + OK/CLOSE + edit chance + log */
   #admin{
     position:fixed;
     inset:0;
@@ -261,17 +275,23 @@
 
 <body>
 
-<!-- ✅ Hidden hotspot kiri atas untuk buka/tutup Admin -->
 <div id="adminHotspot" aria-label="Admin Hotspot"></div>
+<div id="fullscreenHotspot" aria-label="Fullscreen Toggle Hotspot"></div>
 
 <div id="title">Solushe Lucky Spin</div>
 
 <div id="center">
   <div id="wheel-wrap">
-    <div id="gold-ring"></div>
-    <canvas id="wheel" width="460" height="460"></canvas>
-    <img src="logo.png" id="logo" alt="logo">
-    <div id="pointer"></div>
+
+    <!-- ✅ wheel-only stage (yang naik cuma ini) -->
+    <div id="wheel-stage">
+      <div id="gold-ring"></div>
+      <canvas id="wheel" width="460" height="460"></canvas>
+      <img src="logo.png" id="logo" alt="logo">
+      <div id="pointer"></div>
+    </div>
+
+    <!-- ✅ tombol tetap posisi awal -->
     <button id="spin">SPIN</button>
   </div>
 </div>
@@ -290,6 +310,15 @@
       <div style="margin-top:10px; font-size:12px; color:#666;">
         Shortcut: <b>CTRL + ALT + A</b> untuk buka / tutup.
       </div>
+
+      <div style="margin-top:10px;">
+        <button id="exportLog" style="padding:10px 14px; border:none; border-radius:10px; background:#2f7d32; color:white; font-weight:bold; cursor:pointer;">
+          EXPORT LOG ke Excel
+        </button>
+        <button id="resetAll" style="margin-left:8px; padding:10px 14px; border:none; border-radius:10px; background:#b71c1c; color:white; font-weight:bold; cursor:pointer;">
+          RESET KE SETTING AWAL
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -298,26 +327,72 @@
 <audio id="win" src="win.mp3" preload="auto"></audio>
 
 <script>
-/* ===========================
-   DATA (LOCK RULES)
-   - Slice visual sama, chance logic only
-   - "Face / Acne Rejuve" wajib 2 baris
-   - Once prizes hilang dari wheel (hapus slice)
-=========================== */
-
-let prizes = [
-  { name:"iPhone 17 Pro", chance:5, once:true },
+const DEFAULT_PRIZES = [
+  { name:"iPhone 17 Pro", chance:0, once:true },
   { name:"MMFU", chance:10 },
-  { name:"Philips Air Fryer", chance:6, once:true },
-
-  // UPDATE: Face/Acne Rejuve jadi 2 baris
-  { name:"Face / Acne\nRejuve", chance:20 },
-
-  { name:"Remington Hair\nStraightener", chance:7, once:true },
-  { name:"Underarm Rejuve /\nHair Removal", chance:18 },
-  { name:"Glow / Acne Peel", chance:24 },
-  { name:"Logam Mulia", chance:6, once:true }
+  { name:"Philips Air Fryer", chance:1, once:true },
+  { name:"Face / Acne\nRejuve", chance:30 },
+  { name:"Remington Hair\nStraightener", chance:1, once:true },
+  { name:"Underarm Rejuve /\nHair Removal", chance:30 },
+  { name:"Glow / Acne Peel", chance:40 },
+  { name:"Logam Mulia", chance:1, once:true }
 ];
+
+const STORAGE_KEY = "solushe_lucky_spin_state_v1";
+
+function safeParseJSON(s){ try{ return JSON.parse(s); }catch(e){ return null; } }
+
+function normalizePrizes(arr){
+  if(!Array.isArray(arr)) return null;
+  const out = [];
+  for(const p of arr){
+    if(!p || typeof p !== "object") continue;
+    if(typeof p.name !== "string") continue;
+    out.push({ name:p.name, chance:Number(p.chance||0), ...(p.once?{once:true}:{}) });
+  }
+  return out.length ? out : null;
+}
+
+function normalizeLogs(arr){
+  if(!Array.isArray(arr)) return [];
+  return arr.map(x => String(x)).filter(Boolean);
+}
+
+function loadState(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw) return null;
+  const st = safeParseJSON(raw);
+  if(!st || typeof st !== "object") return null;
+
+  const loadedPrizes = normalizePrizes(st.prizes);
+  const loadedLogs = normalizeLogs(st.spinLogs);
+  const loadedAngle = Number(st.angle || 0);
+
+  return {
+    prizes: loadedPrizes,
+    spinLogs: loadedLogs,
+    angle: isFinite(loadedAngle) ? loadedAngle : 0
+  };
+}
+
+function saveState(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ prizes, spinLogs, angle }));
+  }catch(e){}
+}
+
+let prizes = DEFAULT_PRIZES.map(p => ({...p}));
+let spinLogs = [];
+let spinning = false;
+let rafId = null;
+let angle = 0;
+
+const loaded = loadState();
+if(loaded){
+  if(loaded.prizes) prizes = loaded.prizes;
+  spinLogs = loaded.spinLogs || [];
+  angle = loaded.angle || 0;
+}
 
 const maroon = getComputedStyle(document.documentElement).getPropertyValue('--maroon').trim() || "#7a1f2b";
 const white  = getComputedStyle(document.documentElement).getPropertyValue('--white').trim()  || "#ffffff";
@@ -335,9 +410,9 @@ const winText = document.getElementById("winText");
 const drum = document.getElementById("drum");
 const winSfx = document.getElementById("win");
 
-/* ===========================
-   DRAW WHEEL (selalu redraw setelah hadiah berkurang)
-=========================== */
+wheelEl.style.transform = `rotate(${angle}deg)`;
+
+/* ✅ DRAW (text menjorok + border gold antar slice) */
 function draw(){
   ctx.clearRect(0,0,460,460);
   const cx=230, cy=230, r=230;
@@ -352,20 +427,26 @@ function draw(){
     ctx.closePath();
     ctx.fill();
 
-    // Text: Arial Bold, 1-2 baris, tetap di dalam circle
+    // ✅ border gold antar slice
+    ctx.strokeStyle = "#d4af37";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Text
     ctx.save();
     ctx.translate(cx,cy);
     ctx.rotate(i*arc + arc/2);
 
     ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = (i%2) ? white : maroon;
     ctx.font = "bold 17px Arial";
 
-    const lines = p.name.split("\n").slice(0,2); // max 2 baris
+    const lines = p.name.split("\n").slice(0,2);
     const lineH = 18;
 
-    // posisi teks agak masuk supaya tidak offside
-    const textRadius = 205;
+    // ✅ text menjorok ke dalam
+    const textRadius = p.name.includes("Underarm Rejuve") ? 215 : 205;
 
     const totalH = (lines.length-1)*lineH;
     lines.forEach((line, idx)=>{
@@ -378,9 +459,6 @@ function draw(){
 }
 draw();
 
-/* ===========================
-   PICK PRIZE (chance logic only)
-=========================== */
 function pickPrize(){
   const total = prizes.reduce((s,p)=> s + Number(p.chance||0), 0);
   let r = Math.random() * total;
@@ -392,16 +470,6 @@ function pickPrize(){
   return prizes[prizes.length-1];
 }
 
-/* ===========================
-   SPIN ENGINE (ANTI LAG)
-   - satu animasi per spin (cancel sebelumnya)
-   - reset state setiap spin
-   - tidak transform numpuk: set rotate ke angle absolut
-=========================== */
-let spinning = false;
-let rafId = null;
-let angle = 0; // derajat absolut (akan terus bertambah, tapi transform selalu pakai angle ini)
-
 function cancelSpinIfAny(){
   if(rafId){
     cancelAnimationFrame(rafId);
@@ -409,21 +477,12 @@ function cancelSpinIfAny(){
   }
 }
 
-function normDeg(d){
-  d = d % 360;
-  if(d < 0) d += 360;
-  return d;
-}
-
-/* Helper: pointer click */
 function pointerClick(){
   pointerEl.classList.remove("pointer-bounce");
-  // reflow biar animasi bisa dipanggil berulang
   void pointerEl.offsetWidth;
   pointerEl.classList.add("pointer-bounce");
 }
 
-/* "klik...klik...klik" saat finish */
 function pointerClickTriple(){
   let n=0;
   const tick = ()=>{
@@ -434,61 +493,140 @@ function pointerClickTriple(){
   tick();
 }
 
-spinBtn.addEventListener("click", ()=>{
-  if(spinning) return;
+let spinPhase = "idle";
+let selectedPrize = null;
+let selectedIndex = -1;
+let spinLastTime = null;
 
-  // reset state spin (ANTI LAG)
-  spinning = true;
-  spinBtn.disabled = true;
-  cancelSpinIfAny();
+const FREE_SPIN_SPEED_DEG_PER_MS = 0.55;
 
-  // stop & reset audio
+function startFreeSpin(){
   try{
     drum.pause(); drum.currentTime = 0;
     winSfx.pause(); winSfx.currentTime = 0;
   }catch(e){}
 
+  try{ drum.loop = true; }catch(e){}
   drum.play().catch(()=>{});
 
-  // pilih hadiah (logic)
-  const winPrize = pickPrize();
-  const idx = prizes.indexOf(winPrize);
+  spinPhase = "spinning";
+  spinBtn.textContent = "STOP";
+  spinBtn.disabled = false;
+
+  spinLastTime = null;
+
+  const speedDegPerMs = FREE_SPIN_SPEED_DEG_PER_MS;
+
+  function animate(t){
+    if(spinPhase !== "spinning") return;
+    if(!spinLastTime) spinLastTime = t;
+    const dt = t - spinLastTime;
+    spinLastTime = t;
+
+    angle = angle + (speedDegPerMs * dt);
+    wheelEl.style.transform = `rotate(${angle}deg)`;
+
+    rafId = requestAnimationFrame(animate);
+  }
+
+  rafId = requestAnimationFrame(animate);
+}
+
+function stopToSelectedPrize(){
+  if(spinPhase !== "spinning") return;
+
+  spinPhase = "stopping";
+  spinBtn.disabled = true;
+  cancelSpinIfAny();
+
+  const winPrize = selectedPrize;
+  const idx = selectedIndex;
+
   const sliceDeg = 360 / prizes.length;
 
-  const centerOfSlice = idx*sliceDeg + sliceDeg/2;
+  // ✅ stop random dalam slice + margin sangat kecil (hampir salah slice)
+  const sliceStart = idx * sliceDeg;
+  const sliceEnd   = (idx + 1) * sliceDeg;
 
-  const extraTurns = 6 * 360;
+  let margin = Math.min(sliceDeg * 0.02, 1.5);
+  margin = Math.min(margin, sliceDeg / 2 - 0.01);
+
+  const stopTheta =
+    (sliceStart + margin) +
+    Math.random() * ((sliceEnd - margin) - (sliceStart + margin));
+
   const startAngle = angle;
-  const targetAngle = (Math.floor(startAngle/360)*360) + extraTurns + (360 - centerOfSlice);
+  const extraTurns = 3 * 360;
 
-  const duration = 4200;
+  const base = Math.ceil(startAngle/360) * 360;
+  let targetAngle = base + extraTurns + (360 - stopTheta);
+  if(targetAngle <= startAngle + 360){
+    targetAngle += 360;
+  }
+
+  const D = (targetAngle - startAngle);
+  const v0 = Math.max(0.15, FREE_SPIN_SPEED_DEG_PER_MS);
+  let duration = (2 * D) / v0;
+
+  if(duration < 1600) duration = 1600;
+  if(duration > 6500) duration = 6500;
+
+  const a = -v0 / duration;
+
   let startTime = null;
 
   function animate(t){
     if(!startTime) startTime = t;
     const elapsed = t - startTime;
-    const p = Math.min(elapsed / duration, 1);
+    const tt = Math.min(elapsed, duration);
 
-    const eased = 1 - Math.pow(1 - p, 3);
-
-    const current = startAngle + (targetAngle - startAngle) * eased;
+    const current = startAngle + (v0 * tt) + (0.5 * a * tt * tt);
 
     angle = current;
     wheelEl.style.transform = `rotate(${angle}deg)`;
 
-    if(p < 1){
+    if(elapsed < duration){
       rafId = requestAnimationFrame(animate);
     }else{
       rafId = null;
+      angle = targetAngle;
+      wheelEl.style.transform = `rotate(${angle}deg)`;
       finishSpin(winPrize);
     }
   }
 
   rafId = requestAnimationFrame(animate);
+}
+
+spinBtn.addEventListener("click", ()=>{
+  if(spinPhase === "idle"){
+    if(spinning) return;
+
+    spinning = true;
+    cancelSpinIfAny();
+
+    selectedPrize = pickPrize();
+    selectedIndex = prizes.indexOf(selectedPrize);
+
+    startFreeSpin();
+    return;
+  }
+
+  if(spinPhase === "spinning"){
+    stopToSelectedPrize();
+    return;
+  }
+
+  if(spinPhase === "stopping"){
+    return;
+  }
 });
 
 function finishSpin(winPrize){
-  try{ drum.pause(); }catch(e){}
+  try{
+    drum.loop = false;
+    drum.pause();
+  }catch(e){}
   winSfx.play().catch(()=>{});
 
   pointerClickTriple();
@@ -508,20 +646,24 @@ function finishSpin(winPrize){
     draw();
   }
 
+  saveState();
+
   spinning = false;
+  spinPhase = "idle";
+  selectedPrize = null;
+  selectedIndex = -1;
+  spinLastTime = null;
+
   spinBtn.disabled = false;
+  spinBtn.textContent = "SPIN";
 }
 
-overlay.addEventListener("click", ()=>{
-  overlay.style.display = "none";
-});
+overlay.addEventListener("click", ()=>{ overlay.style.display = "none"; });
 
 function confettiExplode(){
   const colors = [ "#ffffff", maroon, "#d4af37" ];
-
   const sx = "50vw";
   const sy = "55vh";
-
   const count = 260;
 
   for(let i=0;i<count;i++){
@@ -531,10 +673,10 @@ function confettiExplode(){
     c.style.setProperty("--sy", sy);
     c.style.setProperty("--c", colors[Math.floor(Math.random()*colors.length)]);
 
-    const angle = Math.random() * Math.PI * 2;
+    const a = Math.random() * Math.PI * 2;
     const dist = 120 + Math.random() * 520;
-    const dx = Math.cos(angle) * dist;
-    const dy = Math.sin(angle) * dist;
+    const dx = Math.cos(a) * dist;
+    const dy = Math.sin(a) * dist;
 
     c.style.setProperty("--dx", dx.toFixed(1) + "px");
     c.style.setProperty("--dy", dy.toFixed(1) + "px");
@@ -554,13 +696,66 @@ const adminList = document.getElementById("adminList");
 const adminLogList = document.getElementById("adminLogList");
 const closeAdmin = document.getElementById("closeAdmin");
 
-let spinLogs = [];
+function exportLogToExcel(){
+  const header = ["Tanggal & Waktu","Hadiah"];
+  const rows = [header];
+  const ordered = spinLogs.slice().reverse();
+
+  for(const entry of ordered){
+    const parts = String(entry).split(" — ");
+    const tanggal = parts[0] || "";
+    const hadiah = parts.slice(1).join(" — ") || "";
+    rows.push([tanggal, hadiah]);
+  }
+
+  function csvEscape(v){
+    v = String(v ?? "");
+    v = v.replaceAll("\r\n","\n").replaceAll("\r","\n");
+    if(v.includes('"')) v = v.replaceAll('"','""');
+    if(v.includes(",") || v.includes("\n") || v.includes('"')) v = `"${v}"`;
+    return v;
+  }
+
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const d = new Date();
+  const pad = (n)=> String(n).padStart(2,"0");
+  const fname = `solushe-spin-log-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.csv`;
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(()=> URL.revokeObjectURL(url), 1200);
+}
+
+function resetAllToDefault(){
+  const ok = confirm("Reset SEMUA data ke setting awal? (log + chance + hadiah once + posisi wheel akan kembali default)");
+  if(!ok) return;
+
+  prizes = DEFAULT_PRIZES.map(p => ({...p}));
+  spinLogs = [];
+  angle = 0;
+
+  wheelEl.style.transform = `rotate(${angle}deg)`;
+  draw();
+  renderLog();
+  renderAdmin();
+
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  saveState();
+}
 
 function addLog(text){
   const stamp = new Date().toLocaleString("id-ID");
   spinLogs.unshift(`${stamp} — ${text}`);
-  spinLogs = spinLogs.slice(0, 60);
   renderLog();
+  saveState();
 }
 
 function renderLog(){
@@ -597,6 +792,7 @@ function renderAdmin(){
     const input = ch.querySelector("input");
     input.addEventListener("input", ()=>{
       prizes[i].chance = Number(input.value || 0);
+      saveState();
     });
 
     row.appendChild(nm);
@@ -611,19 +807,28 @@ document.addEventListener("keydown", (e)=>{
   if(e.ctrlKey && e.altKey && e.key.toLowerCase()==="a"){
     admin.style.display = (admin.style.display==="flex") ? "none" : "flex";
     if(admin.style.display==="flex") renderAdmin();
+    saveState();
   }
 });
 
 closeAdmin.addEventListener("click", ()=>{
   admin.style.display = "none";
+  saveState();
 });
 
-/* ✅ iPad/Tab: klik/tap hotspot kiri atas untuk toggle admin */
-const adminHotspot = document.getElementById("adminHotspot");
-adminHotspot.addEventListener("click", ()=>{
+document.getElementById("adminHotspot").addEventListener("click", ()=>{
   admin.style.display = (admin.style.display==="flex") ? "none" : "flex";
   if(admin.style.display==="flex") renderAdmin();
+  saveState();
 });
+
+document.getElementById("fullscreenHotspot").addEventListener("click", ()=>{
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
+});
+
+document.getElementById("exportLog").addEventListener("click", ()=>{ exportLogToExcel(); });
+document.getElementById("resetAll").addEventListener("click", ()=>{ resetAllToDefault(); });
 </script>
 </body>
 </html>
