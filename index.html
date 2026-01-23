@@ -14,9 +14,8 @@
     --gold:#d4af37;
     --bright-red:#ff0000;
 
-    /* ✅ baru: atur “jaminan ruang” buat tombol yang overhang */
-    --spin-overhang: 80px; /* sesuai bottom:-80px */
-    --spin-safe-gap: 2px;  /* gap kecil ke bawah viewport (boleh 0–10px) */
+    /* ✅ baru: gap kecil ke bawah viewport (boleh 0–10px) */
+    --spin-safe-gap: 2px;
   }
 
   html,body{
@@ -109,27 +108,19 @@
     align-items:center;
     padding-top:65px;
 
-    /* ✅ INI KUNCINYA:
-       Kita “reserve” ruang bawah untuk tombol yang keluar (bottom:-80px),
-       biar tombol gak kepotong TANPA mengecilkan wheel. */
-    padding-bottom: calc(
-      env(safe-area-inset-bottom, 0px) +
-      var(--spin-overhang) +
-      var(--spin-safe-gap)
-    );
+    /* ✅ kecil aja: biar konten nggak “naik” karena reserve besar */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--spin-safe-gap));
 
     box-sizing:border-box;
     height: calc(var(--vh, 1vh) * 100); /* iOS fix */
   }
 
-  /* ✅ BALIKIN WHEEL BIAR GEDE (hapus clamp --safeH yang bikin kekecilan) */
+  /* ✅ WHEEL */
   #wheel-wrap{
     position:relative;
     width: min(460px, 88vmin);
     height:min(460px, 88vmin);
     aspect-ratio:1 / 1;
-
-    /* ✅ supaya overflow dari tombol bisa terlihat (jangan kepotong oleh parent) */
     overflow: visible;
   }
 
@@ -139,9 +130,8 @@
     width:100%;
     height:100%;
 
-    /* ✅ FIX: viewport pendek (iPad mini landscape) -> “naik”-nya dikurangi biar gak nabrak title
-       viewport tinggi -> tetap terasa naik */
-    transform: translateY(clamp(-25px, -3vh, -10px));
+    /* ✅ aman di viewport pendek (nggak nabrak title), tetap naik dikit di viewport tinggi */
+    transform: translateY(clamp(-18px, -2vh, -8px));
   }
 
   /* GOLD RING */
@@ -202,12 +192,13 @@
     100% { transform:translate(-10px,-50%); }
   }
 
-  /* ✅ TOMBOL: POSISI TETAP (sesuai permintaan) + selalu layer atas */
+  /* ✅ TOMBOL: fixed ke viewport, mepet bawah tapi aman (tidak ngedorong layout) */
   #spin{
-    position:absolute;
-    bottom:-80px;            /* TETAP */
+    position:fixed;
     left:50%;
     transform:translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--spin-safe-gap));
+
     padding:14px 40px;
     font-size:22px;
     font-weight:bold;
@@ -217,12 +208,8 @@
     color:white;
     cursor:pointer;
 
-    /* ✅ bikin pasti ga ketutup apa pun */
     z-index:9999;
     isolation:isolate;
-
-    /* ✅ iOS Safari kadang “nge-clip” layer tertentu; ini bantu */
-    translate: 0 0;
   }
   #spin:disabled{ opacity:.6; cursor:not-allowed; }
 
