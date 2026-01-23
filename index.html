@@ -22,8 +22,32 @@
     font-family:Arial,sans-serif;
   }
 
+  /* ✅ BACKGROUND FIX: selalu penuh di semua device + area kosong jadi blur (tanpa putih) */
   body{
-    background:url("background.jpg") center/cover no-repeat fixed;
+    position:relative;
+    background:transparent; /* penting: biar layer background yang handle */
+    min-height:100svh;      /* iOS modern */
+    min-height:100vh;       /* fallback */
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:url("background.jpg") center/cover no-repeat;
+    z-index:-2;
+    transform:translateZ(0);
+  }
+  body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:url("background.jpg") center/contain no-repeat; /* gambar full, tidak kepotong */
+    filter:blur(14px);
+    transform:scale(1.06); /* supaya blur nutup pinggir */
+    opacity:.55;
+    z-index:-1;
+    transform-origin:center;
+    pointer-events:none;
   }
 
   /* 1️⃣ TITLE (PLAIN, STABIL, NO SHADOW/GRADIENT) */
@@ -77,10 +101,12 @@
     box-sizing:border-box;
   }
 
+  /* ✅ WHEEL ANTI "PENYOK": responsif + selalu 1:1 */
   #wheel-wrap{
     position:relative;
-    width:460px;
-    height:460px;
+    width:min(460px, 88vmin);
+    height:min(460px, 88vmin);
+    aspect-ratio:1 / 1;
   }
 
   /* ✅ NEW: wrapper khusus wheel (biar tombol SPIN gak ikut naik) */
@@ -110,6 +136,7 @@
     z-index:2;
     transform:rotate(0deg);
     will-change:transform;
+    display:block; /* ✅ bantu anti-stretch di beberapa browser */
   }
 
   /* 6️⃣ LOGO (BULAT, BERSIH, TANPA RING, DIAM) */
@@ -329,12 +356,12 @@
 <script>
 const DEFAULT_PRIZES = [
   { name:"iPhone 17 Pro", chance:0, once:true },
-  { name:"MMFU", chance:10 },
+  { name:"MMFU", chance:9 },
   { name:"Philips Air Fryer", chance:1, once:true },
-  { name:"Face / Acne\nRejuve", chance:30 },
+  { name:"Face / Acne\nRejuve", chance:27 },
   { name:"Remington Hair\nStraightener", chance:1, once:true },
-  { name:"Underarm Rejuve /\nHair Removal", chance:30 },
-  { name:"Glow / Acne Peel", chance:40 },
+  { name:"Underarm Rejuve /\nHair Removal", chance:27 },
+  { name:"Glow / Acne Peel", chance:34 },
   { name:"Logam Mulia", chance:1, once:true }
 ];
 
@@ -416,6 +443,10 @@ wheelEl.style.transform = `rotate(${angle}deg)`;
 function draw(){
   ctx.clearRect(0,0,460,460);
   const cx=230, cy=230, r=230;
+
+  if(!prizes.length){
+    return;
+  }
 
   const arc = (Math.PI*2) / prizes.length;
 
@@ -601,6 +632,10 @@ function stopToSelectedPrize(){
 spinBtn.addEventListener("click", ()=>{
   if(spinPhase === "idle"){
     if(spinning) return;
+    if(!prizes.length){
+      alert("Daftar hadiah kosong. Tambahkan hadiah di Admin Mode dulu.");
+      return;
+    }
 
     spinning = true;
     cancelSpinIfAny();
@@ -775,28 +810,316 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
+/* ✅ NEW: AUTO NORMALIZE CHANCE -> TOTAL 100% (ambil dari terbesar dulu) */
+function normalizeChancesTo100(fixedIndex){
+  if(!Array.isArray(prizes) || prizes.length === 0) return;
+
+  const isIphone = (p)=> String(p?.name || "").toLowerCase().includes("iphone");
+  const minChance = (idx)=>{
+    const p = prizes[idx];
+    if(isIphone(p)) return 0;
+    // kalau ada lebih dari 1 hadiah, non-iphone minimal 1%
+    return (prizes.length > 1) ? 1 : 0;
+  };
+
+  // clamp semua chance dulu
+  for(let i=0;i<prizes.length;i++){
+    let v = Number(prizes[i].chance || 0);
+    if(!isFinite(v)) v = 0;
+    v = Math.round(v);
+    if(v < minChance(i)) v = minChance(i);
+    if(v > 100) v = 100;
+    prizes[i].chance = v;
+  }
+
+  const sumAll = ()=> prizes.reduce((a,p)=> a + Number(p.chance||0), 0);
+  let total = sumAll();
+
+  // kalau sudah pas, selesai
+  if(total === 100) return;
+
+  const fixed = (typeof fixedIndex === "number" && fixedIndex >=0 && fixedIndex < prizes.length) ? fixedIndex : null;
+
+  // helper: list donor/receiver indices by chance desc (largest first), exclude fixed when possible
+  const sortedByChanceDesc = (excludeIdx)=>{
+    const arr = prizes.map((p,i)=>({ i, c:Number(p.chance||0) }));
+    return arr
+      .filter(x => excludeIdx == null ? true : x.i !== excludeIdx)
+      .sort((a,b)=> b.c - a.c);
+  };
+
+  // jika total > 100: kurangi dari yang chance terbesar dulu (selain fixed kalau ada)
+  if(total > 100){
+    let need = total - 100;
+
+    const donors = sortedByChanceDesc(fixed);
+    // kalau donors kosong, fallback ke semua
+    const donors2 = donors.length ? donors : sortedByChanceDesc(null);
+
+    for(const d of donors2){
+      if(need <= 0) break;
+      const i = d.i;
+      const minV = minChance(i);
+      const canTake = Math.max(0, Number(prizes[i].chance||0) - minV);
+      if(canTake <= 0) continue;
+      const take = Math.min(canTake, need);
+      prizes[i].chance = Number(prizes[i].chance||0) - take;
+      need -= take;
+    }
+
+    return;
+  }
+
+  // jika total < 100: tambahkan ke yang chance terbesar dulu (selain fixed kalau ada)
+  if(total < 100){
+    let add = 100 - total;
+
+    const receivers = sortedByChanceDesc(fixed);
+    const receivers2 = receivers.length ? receivers : sortedByChanceDesc(null);
+
+    if(receivers2.length){
+      prizes[receivers2[0].i].chance = Number(prizes[receivers2[0].i].chance||0) + add;
+    }else if(fixed != null){
+      prizes[fixed].chance = Number(prizes[fixed].chance||0) + add;
+    }
+
+    return;
+  }
+}
+
+/* ✅ ADMIN EDITABLE PRIZES (ADD/REMOVE/EDIT NAME/CHANCE/ONCE) + REORDER */
 function renderAdmin(){
   adminList.innerHTML = "";
+
+  // Top controls
+  const top = document.createElement("div");
+  top.className = "adminRow";
+  top.style.borderBottom = "1px solid #eee";
+
+  const left = document.createElement("div");
+  left.className = "adminName";
+  left.textContent = "Edit Hadiah (nama bisa 2 baris pakai Enter)";
+
+  const right = document.createElement("div");
+  right.style.display = "flex";
+  right.style.gap = "8px";
+  right.style.alignItems = "center";
+
+  const addBtn = document.createElement("button");
+  addBtn.textContent = "+ Tambah Hadiah";
+  addBtn.style.padding = "8px 12px";
+  addBtn.style.border = "none";
+  addBtn.style.borderRadius = "10px";
+  addBtn.style.background = "#2f7d32";
+  addBtn.style.color = "white";
+  addBtn.style.fontWeight = "bold";
+  addBtn.style.cursor = "pointer";
+
+  addBtn.addEventListener("click", ()=>{
+    if(spinPhase !== "idle"){
+      alert("Tunggu spin selesai dulu sebelum edit hadiah.");
+      return;
+    }
+    prizes.push({ name:"Hadiah Baru", chance:1 });
+    normalizeChancesTo100(prizes.length - 1);
+    saveState();
+    draw();
+    renderAdmin();
+  });
+
+  right.appendChild(addBtn);
+  top.appendChild(left);
+  top.appendChild(right);
+  adminList.appendChild(top);
+
+  // Prize rows
   prizes.forEach((p,i)=>{
     const row = document.createElement("div");
     row.className = "adminRow";
 
-    const nm = document.createElement("div");
-    nm.className = "adminName";
-    nm.textContent = p.name.replace("\n"," ");
+    const nmWrap = document.createElement("div");
+    nmWrap.className = "adminName";
+    nmWrap.style.display = "flex";
+    nmWrap.style.flexDirection = "column";
+    nmWrap.style.gap = "6px";
 
-    const ch = document.createElement("div");
-    ch.className = "adminChance";
-    ch.innerHTML = `Chance (%): <input type="number" min="0" step="1" value="${Number(p.chance||0)}">`;
+    const nameInput = document.createElement("textarea");
+    nameInput.value = p.name || "";
+    nameInput.rows = 2;
+    nameInput.style.width = "100%";
+    nameInput.style.resize = "vertical";
+    nameInput.style.padding = "8px 10px";
+    nameInput.style.border = "1px solid #ddd";
+    nameInput.style.borderRadius = "10px";
+    nameInput.style.fontWeight = "700";
+    nameInput.style.fontFamily = "Arial, sans-serif";
 
-    const input = ch.querySelector("input");
-    input.addEventListener("input", ()=>{
-      prizes[i].chance = Number(input.value || 0);
+    // Info kecil
+    const hint = document.createElement("div");
+    hint.style.fontSize = "12px";
+    hint.style.color = "#777";
+    hint.textContent = "Tip: Enter = baris baru (maks 2 baris tampil di wheel)";
+
+    nmWrap.appendChild(nameInput);
+    nmWrap.appendChild(hint);
+
+    const controls = document.createElement("div");
+    controls.style.display = "flex";
+    controls.style.gap = "10px";
+    controls.style.alignItems = "center";
+    controls.style.flexWrap = "wrap";
+    controls.style.justifyContent = "flex-end";
+
+    // ✅ REORDER BUTTONS (UP/DOWN)
+    const upBtn = document.createElement("button");
+    upBtn.textContent = "↑";
+    upBtn.title = "Naik";
+    upBtn.style.padding = "8px 10px";
+    upBtn.style.border = "none";
+    upBtn.style.borderRadius = "10px";
+    upBtn.style.background = "#d4af37";
+    upBtn.style.color = "#7a1f2b";
+    upBtn.style.fontWeight = "bold";
+    upBtn.style.cursor = "pointer";
+    upBtn.disabled = (i === 0);
+
+    upBtn.addEventListener("click", ()=>{
+      if(spinPhase !== "idle"){
+        alert("Tunggu spin selesai dulu sebelum reorder hadiah.");
+        return;
+      }
+      if(i <= 0) return;
+      const tmp = prizes[i-1];
+      prizes[i-1] = prizes[i];
+      prizes[i] = tmp;
+
       saveState();
+      draw();
+      renderAdmin();
     });
 
-    row.appendChild(nm);
-    row.appendChild(ch);
+    const downBtn = document.createElement("button");
+    downBtn.textContent = "↓";
+    downBtn.title = "Turun";
+    downBtn.style.padding = "8px 10px";
+    downBtn.style.border = "none";
+    downBtn.style.borderRadius = "10px";
+    downBtn.style.background = "#d4af37";
+    downBtn.style.color = "#7a1f2b";
+    downBtn.style.fontWeight = "bold";
+    downBtn.style.cursor = "pointer";
+    downBtn.disabled = (i === prizes.length - 1);
+
+    downBtn.addEventListener("click", ()=>{
+      if(spinPhase !== "idle"){
+        alert("Tunggu spin selesai dulu sebelum reorder hadiah.");
+        return;
+      }
+      if(i >= prizes.length - 1) return;
+      const tmp = prizes[i+1];
+      prizes[i+1] = prizes[i];
+      prizes[i] = tmp;
+
+      saveState();
+      draw();
+      renderAdmin();
+    });
+
+    // Chance
+    const chWrap = document.createElement("div");
+    chWrap.className = "adminChance";
+    chWrap.innerHTML = `Chance (%): <input type="number" min="0" step="1" value="${Number(p.chance||0)}">`;
+    const chanceInput = chWrap.querySelector("input");
+
+    // Once checkbox
+    const onceWrap = document.createElement("label");
+    onceWrap.style.display = "flex";
+    onceWrap.style.alignItems = "center";
+    onceWrap.style.gap = "6px";
+    onceWrap.style.fontSize = "14px";
+    onceWrap.style.userSelect = "none";
+
+    const onceCb = document.createElement("input");
+    onceCb.type = "checkbox";
+    onceCb.checked = !!p.once;
+
+    const onceTxt = document.createElement("span");
+    onceTxt.textContent = "Once";
+
+    onceWrap.appendChild(onceCb);
+    onceWrap.appendChild(onceTxt);
+
+    // Delete button
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "Hapus";
+    delBtn.style.padding = "8px 12px";
+    delBtn.style.border = "none";
+    delBtn.style.borderRadius = "10px";
+    delBtn.style.background = "#b71c1c";
+    delBtn.style.color = "white";
+    delBtn.style.fontWeight = "bold";
+    delBtn.style.cursor = "pointer";
+
+    delBtn.addEventListener("click", ()=>{
+      if(spinPhase !== "idle"){
+        alert("Tunggu spin selesai dulu sebelum hapus hadiah.");
+        return;
+      }
+      const ok = confirm(`Hapus hadiah ini?\n\n"${(p.name||"").replace("\n"," ")}"`);
+      if(!ok) return;
+
+      prizes.splice(i,1);
+
+      // kalau habis dihapus, reset selection state biar aman
+      selectedPrize = null;
+      selectedIndex = -1;
+
+      normalizeChancesTo100();
+      saveState();
+      draw();
+      renderAdmin();
+    });
+
+    // Live update handlers
+    const applyChangesNameOnce = ()=>{
+      if(!prizes[i]) return;
+
+      prizes[i].name = String(nameInput.value || "").trim() || "Hadiah";
+
+      if(onceCb.checked) prizes[i].once = true;
+      else delete prizes[i].once;
+
+      saveState();
+      draw();
+    };
+
+    const applyChangesChance = ()=>{
+      if(!prizes[i]) return;
+
+      prizes[i].chance = Number(chanceInput.value || 0);
+
+      // ✅ AUTO NORMALIZE KE 100% (ambil dari terbesar dulu, selain item yang diedit)
+      normalizeChancesTo100(i);
+      saveState();
+      draw();
+      renderAdmin(); // refresh supaya angka chance yang kebagi terlihat
+    };
+
+    nameInput.addEventListener("input", applyChangesNameOnce);
+    onceCb.addEventListener("change", applyChangesNameOnce);
+
+    // ✅ PENTING: chance pakai "change" agar tidak loncat saat mengetik
+    chanceInput.addEventListener("change", applyChangesChance);
+
+    controls.appendChild(upBtn);
+    controls.appendChild(downBtn);
+    controls.appendChild(chWrap);
+    controls.appendChild(onceWrap);
+    controls.appendChild(delBtn);
+
+    row.appendChild(nmWrap);
+    row.appendChild(controls);
+
     adminList.appendChild(row);
   });
 
