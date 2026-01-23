@@ -25,9 +25,11 @@
   /* ✅ BACKGROUND FIX: selalu penuh di semua device + area kosong jadi blur (tanpa putih) */
   body{
     position:relative;
-    background:transparent; /* penting: biar layer background yang handle */
+    background:#e9e3da; /* ✅ fallback biar tidak pernah putih */
     min-height:100svh;      /* iOS modern */
+    min-height:100dvh;      /* modern browsers */
     min-height:100vh;       /* fallback */
+    min-height:-webkit-fill-available; /* iOS Safari fallback */
   }
   body::before{
     content:"";
@@ -36,18 +38,22 @@
     background:url("background.jpg") center/cover no-repeat;
     z-index:-2;
     transform:translateZ(0);
+    backface-visibility:hidden;
+    will-change:transform;
   }
   body::after{
     content:"";
     position:fixed;
     inset:0;
     background:url("background.jpg") center/contain no-repeat; /* gambar full, tidak kepotong */
-    filter:blur(14px);
-    transform:scale(1.06); /* supaya blur nutup pinggir */
+    filter:blur(18px);
+    transform:scale(1.12) translateZ(0); /* ✅ blur nutup pinggir */
     opacity:.55;
     z-index:-1;
     transform-origin:center;
     pointer-events:none;
+    backface-visibility:hidden;
+    will-change:transform;
   }
 
   /* 1️⃣ TITLE (PLAIN, STABIL, NO SHADOW/GRADIENT) */
@@ -99,6 +105,9 @@
     align-items:center;
     padding-top:65px;
     box-sizing:border-box;
+
+    /* ✅ iOS/iPad viewport height fix */
+    height: calc(var(--vh, 1vh) * 100);
   }
 
   /* ✅ WHEEL ANTI "PENYOK": responsif + selalu 1:1 */
@@ -109,7 +118,7 @@
     aspect-ratio:1 / 1;
   }
 
-  /* ✅ NEW: wrapper khusus wheel (biar tombol SPIN gak ikut naik) */
+  /* ✅ wrapper khusus wheel (biar tombol SPIN gak ikut naik) */
   #wheel-stage{
     position:relative;
     width:100%;
@@ -354,6 +363,14 @@
 <audio id="win" src="win.mp3" preload="auto"></audio>
 
 <script>
+/* ✅ iOS/iPad viewport height fix (anti putih saat fullscreen / address bar berubah) */
+function setVh(){
+  document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+}
+setVh();
+window.addEventListener('resize', setVh);
+window.addEventListener('orientationchange', setVh);
+
 const DEFAULT_PRIZES = [
   { name:"iPhone 17 Pro", chance:0, once:true },
   { name:"MMFU", chance:9 },
@@ -408,6 +425,15 @@ function saveState(){
   }catch(e){}
 }
 
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
 let prizes = DEFAULT_PRIZES.map(p => ({...p}));
 let spinLogs = [];
 let spinning = false;
@@ -437,16 +463,19 @@ const winText = document.getElementById("winText");
 const drum = document.getElementById("drum");
 const winSfx = document.getElementById("win");
 
+const admin = document.getElementById("admin");
+const adminList = document.getElementById("adminList");
+const adminLogList = document.getElementById("adminLogList");
+const closeAdmin = document.getElementById("closeAdmin");
+
 wheelEl.style.transform = `rotate(${angle}deg)`;
 
-/* ✅ DRAW (text menjorok + border gold antar slice) */
+/* ✅ DRAW */
 function draw(){
   ctx.clearRect(0,0,460,460);
   const cx=230, cy=230, r=230;
 
-  if(!prizes.length){
-    return;
-  }
+  if(!prizes.length) return;
 
   const arc = (Math.PI*2) / prizes.length;
 
@@ -458,7 +487,7 @@ function draw(){
     ctx.closePath();
     ctx.fill();
 
-    // ✅ border gold antar slice
+    // border gold antar slice
     ctx.strokeStyle = "#d4af37";
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -473,11 +502,11 @@ function draw(){
     ctx.fillStyle = (i%2) ? white : maroon;
     ctx.font = "bold 17px Arial";
 
-    const lines = p.name.split("\n").slice(0,2);
+    const lines = String(p.name || "").split("\n").slice(0,2);
     const lineH = 18;
 
-    // ✅ text menjorok ke dalam
-    const textRadius = p.name.includes("Underarm Rejuve") ? 215 : 205;
+    // text menjorok ke dalam
+    const textRadius = String(p.name||"").includes("Underarm Rejuve") ? 215 : 205;
 
     const totalH = (lines.length-1)*lineH;
     lines.forEach((line, idx)=>{
@@ -575,7 +604,7 @@ function stopToSelectedPrize(){
 
   const sliceDeg = 360 / prizes.length;
 
-  // ✅ stop random dalam slice + margin sangat kecil (hampir salah slice)
+  // stop random dalam slice + margin kecil
   const sliceStart = idx * sliceDeg;
   const sliceEnd   = (idx + 1) * sliceDeg;
 
@@ -651,10 +680,6 @@ spinBtn.addEventListener("click", ()=>{
     stopToSelectedPrize();
     return;
   }
-
-  if(spinPhase === "stopping"){
-    return;
-  }
 });
 
 function finishSpin(winPrize){
@@ -667,16 +692,16 @@ function finishSpin(winPrize){
   pointerClickTriple();
 
   winText.classList.remove("win-zoom");
-  winText.innerText = winPrize.name.replace("\n"," ");
+  winText.innerText = String(winPrize?.name || "").replace("\n"," ");
   overlay.style.display = "flex";
   void winText.offsetWidth;
   winText.classList.add("win-zoom");
 
   confettiExplode();
 
-  addLog(winPrize.name.replace("\n"," "));
+  addLog(String(winPrize?.name || "").replace("\n"," "));
 
-  if(winPrize.once){
+  if(winPrize && winPrize.once){
     prizes = prizes.filter(p => p !== winPrize);
     draw();
   }
@@ -726,10 +751,20 @@ function confettiExplode(){
   }
 }
 
-const admin = document.getElementById("admin");
-const adminList = document.getElementById("adminList");
-const adminLogList = document.getElementById("adminLogList");
-const closeAdmin = document.getElementById("closeAdmin");
+function renderLog(){
+  if(spinLogs.length===0){
+    adminLogList.innerHTML = "<i>Belum ada spin.</i>";
+    return;
+  }
+  adminLogList.innerHTML = spinLogs.map(x => `• ${escapeHtml(x)}`).join("<br>");
+}
+
+function addLog(text){
+  const stamp = new Date().toLocaleString("id-ID");
+  spinLogs.unshift(`${stamp} — ${text}`);
+  renderLog();
+  saveState();
+}
 
 function exportLogToExcel(){
   const header = ["Tanggal & Waktu","Hadiah"];
@@ -786,31 +821,7 @@ function resetAllToDefault(){
   saveState();
 }
 
-function addLog(text){
-  const stamp = new Date().toLocaleString("id-ID");
-  spinLogs.unshift(`${stamp} — ${text}`);
-  renderLog();
-  saveState();
-}
-
-function renderLog(){
-  if(spinLogs.length===0){
-    adminLogList.innerHTML = "<i>Belum ada spin.</i>";
-    return;
-  }
-  adminLogList.innerHTML = spinLogs.map(x => `• ${escapeHtml(x)}`).join("<br>");
-}
-
-function escapeHtml(s){
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-/* ✅ NEW: AUTO NORMALIZE CHANCE -> TOTAL 100% (ambil dari terbesar dulu) */
+/* ✅ AUTO NORMALIZE CHANCE -> TOTAL 100% (ambil dari terbesar dulu) */
 function normalizeChancesTo100(fixedIndex){
   if(!Array.isArray(prizes) || prizes.length === 0) return;
 
@@ -818,11 +829,9 @@ function normalizeChancesTo100(fixedIndex){
   const minChance = (idx)=>{
     const p = prizes[idx];
     if(isIphone(p)) return 0;
-    // kalau ada lebih dari 1 hadiah, non-iphone minimal 1%
     return (prizes.length > 1) ? 1 : 0;
   };
 
-  // clamp semua chance dulu
   for(let i=0;i<prizes.length;i++){
     let v = Number(prizes[i].chance || 0);
     if(!isFinite(v)) v = 0;
@@ -834,13 +843,10 @@ function normalizeChancesTo100(fixedIndex){
 
   const sumAll = ()=> prizes.reduce((a,p)=> a + Number(p.chance||0), 0);
   let total = sumAll();
-
-  // kalau sudah pas, selesai
   if(total === 100) return;
 
   const fixed = (typeof fixedIndex === "number" && fixedIndex >=0 && fixedIndex < prizes.length) ? fixedIndex : null;
 
-  // helper: list donor/receiver indices by chance desc (largest first), exclude fixed when possible
   const sortedByChanceDesc = (excludeIdx)=>{
     const arr = prizes.map((p,i)=>({ i, c:Number(p.chance||0) }));
     return arr
@@ -848,12 +854,10 @@ function normalizeChancesTo100(fixedIndex){
       .sort((a,b)=> b.c - a.c);
   };
 
-  // jika total > 100: kurangi dari yang chance terbesar dulu (selain fixed kalau ada)
   if(total > 100){
     let need = total - 100;
 
     const donors = sortedByChanceDesc(fixed);
-    // kalau donors kosong, fallback ke semua
     const donors2 = donors.length ? donors : sortedByChanceDesc(null);
 
     for(const d of donors2){
@@ -866,11 +870,9 @@ function normalizeChancesTo100(fixedIndex){
       prizes[i].chance = Number(prizes[i].chance||0) - take;
       need -= take;
     }
-
     return;
   }
 
-  // jika total < 100: tambahkan ke yang chance terbesar dulu (selain fixed kalau ada)
   if(total < 100){
     let add = 100 - total;
 
@@ -882,7 +884,6 @@ function normalizeChancesTo100(fixedIndex){
     }else if(fixed != null){
       prizes[fixed].chance = Number(prizes[fixed].chance||0) + add;
     }
-
     return;
   }
 }
@@ -891,7 +892,6 @@ function normalizeChancesTo100(fixedIndex){
 function renderAdmin(){
   adminList.innerHTML = "";
 
-  // Top controls
   const top = document.createElement("div");
   top.className = "adminRow";
   top.style.borderBottom = "1px solid #eee";
@@ -932,7 +932,6 @@ function renderAdmin(){
   top.appendChild(right);
   adminList.appendChild(top);
 
-  // Prize rows
   prizes.forEach((p,i)=>{
     const row = document.createElement("div");
     row.className = "adminRow";
@@ -954,7 +953,6 @@ function renderAdmin(){
     nameInput.style.fontWeight = "700";
     nameInput.style.fontFamily = "Arial, sans-serif";
 
-    // Info kecil
     const hint = document.createElement("div");
     hint.style.fontSize = "12px";
     hint.style.color = "#777";
@@ -970,7 +968,6 @@ function renderAdmin(){
     controls.style.flexWrap = "wrap";
     controls.style.justifyContent = "flex-end";
 
-    // ✅ REORDER BUTTONS (UP/DOWN)
     const upBtn = document.createElement("button");
     upBtn.textContent = "↑";
     upBtn.title = "Naik";
@@ -1025,13 +1022,11 @@ function renderAdmin(){
       renderAdmin();
     });
 
-    // Chance
     const chWrap = document.createElement("div");
     chWrap.className = "adminChance";
     chWrap.innerHTML = `Chance (%): <input type="number" min="0" step="1" value="${Number(p.chance||0)}">`;
     const chanceInput = chWrap.querySelector("input");
 
-    // Once checkbox
     const onceWrap = document.createElement("label");
     onceWrap.style.display = "flex";
     onceWrap.style.alignItems = "center";
@@ -1049,7 +1044,6 @@ function renderAdmin(){
     onceWrap.appendChild(onceCb);
     onceWrap.appendChild(onceTxt);
 
-    // Delete button
     const delBtn = document.createElement("button");
     delBtn.textContent = "Hapus";
     delBtn.style.padding = "8px 12px";
@@ -1070,7 +1064,6 @@ function renderAdmin(){
 
       prizes.splice(i,1);
 
-      // kalau habis dihapus, reset selection state biar aman
       selectedPrize = null;
       selectedIndex = -1;
 
@@ -1080,12 +1073,10 @@ function renderAdmin(){
       renderAdmin();
     });
 
-    // Live update handlers
     const applyChangesNameOnce = ()=>{
       if(!prizes[i]) return;
 
       prizes[i].name = String(nameInput.value || "").trim() || "Hadiah";
-
       if(onceCb.checked) prizes[i].once = true;
       else delete prizes[i].once;
 
@@ -1098,17 +1089,14 @@ function renderAdmin(){
 
       prizes[i].chance = Number(chanceInput.value || 0);
 
-      // ✅ AUTO NORMALIZE KE 100% (ambil dari terbesar dulu, selain item yang diedit)
       normalizeChancesTo100(i);
       saveState();
       draw();
-      renderAdmin(); // refresh supaya angka chance yang kebagi terlihat
+      renderAdmin();
     };
 
     nameInput.addEventListener("input", applyChangesNameOnce);
     onceCb.addEventListener("change", applyChangesNameOnce);
-
-    // ✅ PENTING: chance pakai "change" agar tidak loncat saat mengetik
     chanceInput.addEventListener("change", applyChangesChance);
 
     controls.appendChild(upBtn);
@@ -1152,6 +1140,9 @@ document.getElementById("fullscreenHotspot").addEventListener("click", ()=>{
 
 document.getElementById("exportLog").addEventListener("click", ()=>{ exportLogToExcel(); });
 document.getElementById("resetAll").addEventListener("click", ()=>{ resetAllToDefault(); });
+
+/* initial render */
+renderLog();
 </script>
 </body>
 </html>
