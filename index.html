@@ -13,6 +13,10 @@
     --white:#ffffff;
     --gold:#d4af37;
     --bright-red:#ff0000;
+
+    /* ✅ baru: atur “jaminan ruang” buat tombol yang overhang */
+    --spin-overhang: 80px; /* sesuai bottom:-80px */
+    --spin-safe-gap: 6px;  /* gap kecil ke bawah viewport (boleh 0–10px) */
   }
 
   html,body{
@@ -105,25 +109,24 @@
     align-items:center;
     padding-top:65px;
 
-    /* ✅ DIKECILKAN: kamu bilang gap bawah gak perlu besar.
-       Ini tetap aman (ngikut safe-area), tapi tanpa tambahan +14px */
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* ✅ INI KUNCINYA:
+       Kita “reserve” ruang bawah untuk tombol yang keluar (bottom:-80px),
+       biar tombol gak kepotong TANPA mengecilkan wheel. */
+    padding-bottom: calc(
+      env(safe-area-inset-bottom, 0px) +
+      var(--spin-overhang) +
+      var(--spin-safe-gap)
+    );
 
     box-sizing:border-box;
     height: calc(var(--vh, 1vh) * 100); /* iOS fix */
   }
 
-  /* ✅ FIX UTAMA: wheel otomatis mengecil kalau tinggi viewport kurang,
-     TANPA mengubah posisi tombol (bottom:-80px tetap). */
+  /* ✅ BALIKIN WHEEL BIAR GEDE (hapus clamp --safeH yang bikin kekecilan) */
   #wheel-wrap{
     position:relative;
-
-    /* ✅ DIKURANGIN: biar wheel gak kekecilan (karena padding bawah udah kecil).
-       Tadinya -330px terlalu agresif di iPad mini landscape. */
-    --safeH: calc((var(--vh, 1vh) * 100) - 285px);
-
-    width:  min(460px, 88vmin, var(--safeH));
-    height: min(460px, 88vmin, var(--safeH));
+    width: min(460px, 88vmin);
+    height:min(460px, 88vmin);
     aspect-ratio:1 / 1;
 
     /* ✅ supaya overflow dari tombol bisa terlihat (jangan kepotong oleh parent) */
