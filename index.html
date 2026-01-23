@@ -16,6 +16,11 @@
 
     /* ✅ baru: gap kecil ke bawah viewport (boleh 0–10px) */
     --spin-safe-gap: 2px;
+
+    /* ✅ NEW: wheel+spin jadi 1 group (gap konsisten portrait/landscape) */
+    --group-gap: 26px;  /* jarak wheel ↔ tombol */
+    --title-gap: 14px;  /* jarak aman dari title */
+    --wheelMax: 92vmin; /* di-override JS biar presisi */
   }
 
   html,body{
@@ -104,7 +109,7 @@
     position:absolute;
     inset:0;
     display:flex;
-    justify-content:center;
+    justify-content:center;   /* portrait: tetap center */
     align-items:center;
     padding-top:65px;
 
@@ -115,12 +120,24 @@
     height: calc(var(--vh, 1vh) * 100); /* iOS fix */
   }
 
-  /* ✅ WHEEL */
+  /* ✅ landscape: group turun hampir nempel bawah (biar ga nabrak title & wheel tetap lebar) */
+  @media (orientation: landscape){
+    #center{
+      justify-content:flex-end;
+      padding-top:0; /* biar landscape makin lega */
+    }
+  }
+
+  /* ✅ WHEEL + SPIN jadi 1 GROUP */
   #wheel-wrap{
     position:relative;
-    width: min(460px, 88vmin);
-    height:min(460px, 88vmin);
-    aspect-ratio:1 / 1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: var(--group-gap);
+
+    /* ✅ wheel max ikut luasan layar (di-set dari JS via --wheelMax) */
+    width: min(460px, 92vmin, var(--wheelMax));
     overflow: visible;
   }
 
@@ -128,10 +145,9 @@
   #wheel-stage{
     position:relative;
     width:100%;
-    height:100%;
-
-    /* ✅ aman di viewport pendek (nggak nabrak title), tetap naik dikit di viewport tinggi */
-    transform: translateY(clamp(-18px, -2vh, -8px));
+    aspect-ratio:1 / 1;
+    height:auto;
+    transform:none; /* ✅ biar konsisten portrait/landscape */
   }
 
   /* GOLD RING */
@@ -192,12 +208,12 @@
     100% { transform:translate(-10px,-50%); }
   }
 
-  /* ✅ TOMBOL: fixed ke viewport, mepet bawah tapi aman (tidak ngedorong layout) */
+  /* ✅ TOMBOL: nempel di group (bukan fixed ke viewport) */
   #spin{
-    position:fixed;
-    left:50%;
-    transform:translateX(-50%);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--spin-safe-gap));
+    position:relative;
+    left:auto;
+    bottom:auto;
+    transform:none;
 
     padding:14px 40px;
     font-size:22px;
@@ -362,9 +378,38 @@
 <audio id="win" src="win.mp3" preload="auto"></audio>
 
 <script>
-/* ✅ iOS/iPad viewport height fix (anti putih saat fullscreen / address bar berubah) */
+/* ✅ iOS/iPad viewport height fix + hitung wheelMax biar 1 group (wheel+spin) auto-optim */
 function setVh(){
   document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+
+  requestAnimationFrame(() => {
+    const title = document.getElementById("title");
+    const spin  = document.getElementById("spin");
+    const center = document.getElementById("center");
+    if(!title || !spin || !center) return;
+
+    const styles = getComputedStyle(document.documentElement);
+    const groupGap  = parseFloat(styles.getPropertyValue('--group-gap')) || 26;
+    const titleGap  = parseFloat(styles.getPropertyValue('--title-gap')) || 14;
+
+    const titleBottom = title.getBoundingClientRect().bottom;
+    const spinH = spin.getBoundingClientRect().height;
+
+    /* ✅ FIX: pakai padding-bottom REAL dari #center (sudah termasuk safe-area + spin-safe-gap) */
+    const centerPadBottom = parseFloat(getComputedStyle(center).paddingBottom) || 0;
+
+    // tinggi wheel maksimal supaya:
+    // - ga nabrak title
+    // - masih muat tombol + gap + padding-bottom aman
+    const availableH =
+      window.innerHeight
+      - (titleBottom + titleGap)
+      - (spinH + groupGap)
+      - centerPadBottom;
+
+    const wheelMax = Math.max(180, Math.min(availableH, 460)); // min aman + cap 460 sesuai asset
+    document.documentElement.style.setProperty('--wheelMax', wheelMax + "px");
+  });
 }
 setVh();
 window.addEventListener('resize', setVh);
