@@ -105,9 +105,9 @@
     align-items:center;
     padding-top:65px;
 
-    /* ✅ penting: kasih ruang aman bawah supaya tombol yang "keluar" (bottom:-80px)
-       tidak kepotong sama batas viewport (iPad fullscreen landscape). */
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    /* ✅ DIKECILKAN: kamu bilang gap bawah gak perlu besar.
+       Ini tetap aman (ngikut safe-area), tapi tanpa tambahan +14px */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
 
     box-sizing:border-box;
     height: calc(var(--vh, 1vh) * 100); /* iOS fix */
@@ -118,8 +118,9 @@
   #wheel-wrap{
     position:relative;
 
-    /* Buffer aman: title + naik wheel (-25) + tombol keluar (-80) + margin */
-    --safeH: calc((var(--vh, 1vh) * 100) - 330px);
+    /* ✅ DIKURANGIN: biar wheel gak kekecilan (karena padding bawah udah kecil).
+       Tadinya -330px terlalu agresif di iPad mini landscape. */
+    --safeH: calc((var(--vh, 1vh) * 100) - 285px);
 
     width:  min(460px, 88vmin, var(--safeH));
     height: min(460px, 88vmin, var(--safeH));
