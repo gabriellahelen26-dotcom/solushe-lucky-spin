@@ -25,11 +25,11 @@
   /* ✅ BACKGROUND FIX: selalu penuh di semua device + area kosong jadi blur (tanpa putih) */
   body{
     position:relative;
-    background:#e9e3da; /* ✅ fallback biar tidak pernah putih */
-    min-height:100svh;      /* iOS modern */
-    min-height:100dvh;      /* modern browsers */
-    min-height:100vh;       /* fallback */
-    min-height:-webkit-fill-available; /* iOS Safari fallback */
+    background:#e9e3da; /* fallback biar tidak pernah putih */
+    min-height:100svh;
+    min-height:100dvh;
+    min-height:100vh;
+    min-height:-webkit-fill-available;
   }
   body::before{
     content:"";
@@ -45,9 +45,9 @@
     content:"";
     position:fixed;
     inset:0;
-    background:url("background.jpg") center/contain no-repeat; /* gambar full, tidak kepotong */
+    background:url("background.jpg") center/contain no-repeat;
     filter:blur(18px);
-    transform:scale(1.12) translateZ(0); /* ✅ blur nutup pinggir */
+    transform:scale(1.12) translateZ(0);
     opacity:.55;
     z-index:-1;
     transform-origin:center;
@@ -56,7 +56,7 @@
     will-change:transform;
   }
 
-  /* 1️⃣ TITLE (PLAIN, STABIL, NO SHADOW/GRADIENT) */
+  /* 1️⃣ TITLE */
   #title{
     position:fixed;
     top:18px;
@@ -74,7 +74,7 @@
     background:transparent;
   }
 
-  /* ✅ Hidden Admin Hotspot (tap/click untuk iPad/Tab) */
+  /* Hidden hotspots */
   #adminHotspot{
     position:fixed;
     top:0;
@@ -84,8 +84,6 @@
     background:transparent;
     z-index:1500;
   }
-
-  /* ✅ Fullscreen toggle hotspot di kanan atas */
   #fullscreenHotspot{
     position:fixed;
     top:0;
@@ -96,7 +94,7 @@
     z-index:1500;
   }
 
-  /* CENTER (turunin sedikit biar tidak nabrak judul) */
+  /* CENTER */
   #center{
     position:absolute;
     inset:0;
@@ -105,28 +103,32 @@
     align-items:center;
     padding-top:65px;
     box-sizing:border-box;
-
-    /* ✅ iOS/iPad viewport height fix */
-    height: calc(var(--vh, 1vh) * 100);
+    height: calc(var(--vh, 1vh) * 100); /* iOS fix */
   }
 
-  /* ✅ WHEEL ANTI "PENYOK": responsif + selalu 1:1 */
+  /* ✅ FIX UTAMA: wheel otomatis mengecil kalau tinggi viewport kurang,
+     TANPA mengubah posisi tombol (bottom:-80px tetap). */
   #wheel-wrap{
     position:relative;
-    width:min(460px, 88vmin);
-    height:min(460px, 88vmin);
+
+    /* ruang vertikal yang tersedia (viewport - paddingTop - area tombol yang keluar) */
+    --availableH: calc((var(--vh, 1vh) * 100) - 65px - 140px);
+
+    /* ambil yang paling kecil: batas desktop (460), vmin, dan available height */
+    width: min(460px, 88vmin, var(--availableH));
+    height:min(460px, 88vmin, var(--availableH));
     aspect-ratio:1 / 1;
   }
 
-  /* ✅ wrapper khusus wheel (biar tombol SPIN gak ikut naik) */
+  /* wheel-only stage */
   #wheel-stage{
     position:relative;
     width:100%;
     height:100%;
-    transform:translateY(-25px); /* ✅ naikkan wheel aja (ubah angka ini kalau mau) */
+    transform:translateY(-25px); /* TETAP */
   }
 
-  /* 5️⃣ GOLD RING (DIAM, LUAR WHEEL) */
+  /* GOLD RING */
   #gold-ring{
     position:absolute;
     inset:-24px;
@@ -135,7 +137,7 @@
     z-index:1;
   }
 
-  /* Wheel canvas (yang diputar hanya ini) */
+  /* Wheel canvas */
   #wheel{
     width:100%;
     height:100%;
@@ -145,10 +147,10 @@
     z-index:2;
     transform:rotate(0deg);
     will-change:transform;
-    display:block; /* ✅ bantu anti-stretch di beberapa browser */
+    display:block;
   }
 
-  /* 6️⃣ LOGO (BULAT, BERSIH, TANPA RING, DIAM) */
+  /* LOGO */
   #logo{
     position:absolute;
     width:90px;
@@ -163,7 +165,7 @@
     pointer-events:none;
   }
 
-  /* 2️⃣ POINTER */
+  /* POINTER */
   #pointer{
     position:absolute;
     top:50%;
@@ -177,18 +179,17 @@
     pointer-events:none;
   }
 
-  .pointer-bounce{
-    animation:pointerClick .12s ease;
-  }
+  .pointer-bounce{ animation:pointerClick .12s ease; }
   @keyframes pointerClick{
     0%   { transform:translate(-10px,-50%); }
     50%  { transform:translate(-16px,-50%); }
     100% { transform:translate(-10px,-50%); }
   }
 
+  /* ✅ TOMBOL: POSISI TETAP (sesuai permintaan) */
   #spin{
     position:absolute;
-    bottom:-80px;
+    bottom:-80px;            /* TETAP */
     left:50%;
     transform:translateX(-50%);
     padding:14px 40px;
@@ -223,12 +224,8 @@
     transform:scale(.85);
     opacity:0;
   }
-  .win-zoom{
-    animation:winZoom .35s ease forwards;
-  }
-  @keyframes winZoom{
-    to{ transform:scale(1); opacity:1; }
-  }
+  .win-zoom{ animation:winZoom .35s ease forwards; }
+  @keyframes winZoom{ to{ transform:scale(1); opacity:1; } }
 
   .confetti{
     position:fixed;
@@ -244,10 +241,7 @@
     pointer-events:none;
   }
   @keyframes confettiExplode{
-    to{
-      transform:translate(var(--dx), var(--dy)) rotate(720deg);
-      opacity:0;
-    }
+    to{ transform:translate(var(--dx), var(--dy)) rotate(720deg); opacity:0; }
   }
 
   #admin{
@@ -310,7 +304,6 @@
 </head>
 
 <body>
-
 <div id="adminHotspot" aria-label="Admin Hotspot"></div>
 <div id="fullscreenHotspot" aria-label="Fullscreen Toggle Hotspot"></div>
 
@@ -318,16 +311,12 @@
 
 <div id="center">
   <div id="wheel-wrap">
-
-    <!-- ✅ wheel-only stage (yang naik cuma ini) -->
     <div id="wheel-stage">
       <div id="gold-ring"></div>
       <canvas id="wheel" width="460" height="460"></canvas>
       <img src="logo.png" id="logo" alt="logo">
       <div id="pointer"></div>
     </div>
-
-    <!-- ✅ tombol tetap posisi awal -->
     <button id="spin">SPIN</button>
   </div>
 </div>
@@ -425,15 +414,6 @@ function saveState(){
   }catch(e){}
 }
 
-function escapeHtml(s){
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
 let prizes = DEFAULT_PRIZES.map(p => ({...p}));
 let spinLogs = [];
 let spinning = false;
@@ -463,14 +443,9 @@ const winText = document.getElementById("winText");
 const drum = document.getElementById("drum");
 const winSfx = document.getElementById("win");
 
-const admin = document.getElementById("admin");
-const adminList = document.getElementById("adminList");
-const adminLogList = document.getElementById("adminLogList");
-const closeAdmin = document.getElementById("closeAdmin");
-
 wheelEl.style.transform = `rotate(${angle}deg)`;
 
-/* ✅ DRAW */
+/* DRAW */
 function draw(){
   ctx.clearRect(0,0,460,460);
   const cx=230, cy=230, r=230;
@@ -487,12 +462,10 @@ function draw(){
     ctx.closePath();
     ctx.fill();
 
-    // border gold antar slice
     ctx.strokeStyle = "#d4af37";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Text
     ctx.save();
     ctx.translate(cx,cy);
     ctx.rotate(i*arc + arc/2);
@@ -502,11 +475,9 @@ function draw(){
     ctx.fillStyle = (i%2) ? white : maroon;
     ctx.font = "bold 17px Arial";
 
-    const lines = String(p.name || "").split("\n").slice(0,2);
+    const lines = p.name.split("\n").slice(0,2);
     const lineH = 18;
-
-    // text menjorok ke dalam
-    const textRadius = String(p.name||"").includes("Underarm Rejuve") ? 215 : 205;
+    const textRadius = p.name.includes("Underarm Rejuve") ? 215 : 205;
 
     const totalH = (lines.length-1)*lineH;
     lines.forEach((line, idx)=>{
@@ -574,7 +545,6 @@ function startFreeSpin(){
   spinBtn.disabled = false;
 
   spinLastTime = null;
-
   const speedDegPerMs = FREE_SPIN_SPEED_DEG_PER_MS;
 
   function animate(t){
@@ -603,8 +573,6 @@ function stopToSelectedPrize(){
   const idx = selectedIndex;
 
   const sliceDeg = 360 / prizes.length;
-
-  // stop random dalam slice + margin kecil
   const sliceStart = idx * sliceDeg;
   const sliceEnd   = (idx + 1) * sliceDeg;
 
@@ -632,7 +600,6 @@ function stopToSelectedPrize(){
   if(duration > 6500) duration = 6500;
 
   const a = -v0 / duration;
-
   let startTime = null;
 
   function animate(t){
@@ -692,16 +659,15 @@ function finishSpin(winPrize){
   pointerClickTriple();
 
   winText.classList.remove("win-zoom");
-  winText.innerText = String(winPrize?.name || "").replace("\n"," ");
+  winText.innerText = winPrize.name.replace("\n"," ");
   overlay.style.display = "flex";
   void winText.offsetWidth;
   winText.classList.add("win-zoom");
 
   confettiExplode();
+  addLog(winPrize.name.replace("\n"," "));
 
-  addLog(String(winPrize?.name || "").replace("\n"," "));
-
-  if(winPrize && winPrize.once){
+  if(winPrize.once){
     prizes = prizes.filter(p => p !== winPrize);
     draw();
   }
@@ -751,20 +717,10 @@ function confettiExplode(){
   }
 }
 
-function renderLog(){
-  if(spinLogs.length===0){
-    adminLogList.innerHTML = "<i>Belum ada spin.</i>";
-    return;
-  }
-  adminLogList.innerHTML = spinLogs.map(x => `• ${escapeHtml(x)}`).join("<br>");
-}
-
-function addLog(text){
-  const stamp = new Date().toLocaleString("id-ID");
-  spinLogs.unshift(`${stamp} — ${text}`);
-  renderLog();
-  saveState();
-}
+const admin = document.getElementById("admin");
+const adminList = document.getElementById("adminList");
+const adminLogList = document.getElementById("adminLogList");
+const closeAdmin = document.getElementById("closeAdmin");
 
 function exportLogToExcel(){
   const header = ["Tanggal & Waktu","Hadiah"];
@@ -821,7 +777,31 @@ function resetAllToDefault(){
   saveState();
 }
 
-/* ✅ AUTO NORMALIZE CHANCE -> TOTAL 100% (ambil dari terbesar dulu) */
+function addLog(text){
+  const stamp = new Date().toLocaleString("id-ID");
+  spinLogs.unshift(`${stamp} — ${text}`);
+  renderLog();
+  saveState();
+}
+
+function renderLog(){
+  if(spinLogs.length===0){
+    adminLogList.innerHTML = "<i>Belum ada spin.</i>";
+    return;
+  }
+  adminLogList.innerHTML = spinLogs.map(x => `• ${escapeHtml(x)}`).join("<br>");
+}
+
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+/* AUTO NORMALIZE CHANCE -> TOTAL 100% */
 function normalizeChancesTo100(fixedIndex){
   if(!Array.isArray(prizes) || prizes.length === 0) return;
 
@@ -856,7 +836,6 @@ function normalizeChancesTo100(fixedIndex){
 
   if(total > 100){
     let need = total - 100;
-
     const donors = sortedByChanceDesc(fixed);
     const donors2 = donors.length ? donors : sortedByChanceDesc(null);
 
@@ -875,7 +854,6 @@ function normalizeChancesTo100(fixedIndex){
 
   if(total < 100){
     let add = 100 - total;
-
     const receivers = sortedByChanceDesc(fixed);
     const receivers2 = receivers.length ? receivers : sortedByChanceDesc(null);
 
@@ -884,11 +862,10 @@ function normalizeChancesTo100(fixedIndex){
     }else if(fixed != null){
       prizes[fixed].chance = Number(prizes[fixed].chance||0) + add;
     }
-    return;
   }
 }
 
-/* ✅ ADMIN EDITABLE PRIZES (ADD/REMOVE/EDIT NAME/CHANCE/ONCE) + REORDER */
+/* ADMIN UI */
 function renderAdmin(){
   adminList.innerHTML = "";
 
@@ -989,7 +966,6 @@ function renderAdmin(){
       const tmp = prizes[i-1];
       prizes[i-1] = prizes[i];
       prizes[i] = tmp;
-
       saveState();
       draw();
       renderAdmin();
@@ -1016,7 +992,6 @@ function renderAdmin(){
       const tmp = prizes[i+1];
       prizes[i+1] = prizes[i];
       prizes[i] = tmp;
-
       saveState();
       draw();
       renderAdmin();
@@ -1063,7 +1038,6 @@ function renderAdmin(){
       if(!ok) return;
 
       prizes.splice(i,1);
-
       selectedPrize = null;
       selectedIndex = -1;
 
@@ -1075,20 +1049,16 @@ function renderAdmin(){
 
     const applyChangesNameOnce = ()=>{
       if(!prizes[i]) return;
-
       prizes[i].name = String(nameInput.value || "").trim() || "Hadiah";
       if(onceCb.checked) prizes[i].once = true;
       else delete prizes[i].once;
-
       saveState();
       draw();
     };
 
     const applyChangesChance = ()=>{
       if(!prizes[i]) return;
-
       prizes[i].chance = Number(chanceInput.value || 0);
-
       normalizeChancesTo100(i);
       saveState();
       draw();
@@ -1107,7 +1077,6 @@ function renderAdmin(){
 
     row.appendChild(nmWrap);
     row.appendChild(controls);
-
     adminList.appendChild(row);
   });
 
@@ -1140,9 +1109,6 @@ document.getElementById("fullscreenHotspot").addEventListener("click", ()=>{
 
 document.getElementById("exportLog").addEventListener("click", ()=>{ exportLogToExcel(); });
 document.getElementById("resetAll").addEventListener("click", ()=>{ resetAllToDefault(); });
-
-/* initial render */
-renderLog();
 </script>
 </body>
 </html>
