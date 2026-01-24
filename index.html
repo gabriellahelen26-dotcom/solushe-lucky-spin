@@ -109,6 +109,10 @@
     position:absolute;
     inset:0;
     display:flex;
+
+    /* ✅ FIX UTAMA: biar justify-content ngaruhnya VERTIKAL (turun/naik), bukan ke kanan */
+    flex-direction: column;
+
     justify-content:center;   /* portrait: tetap center */
     align-items:center;
     padding-top:65px;
